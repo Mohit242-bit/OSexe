@@ -1,0 +1,101 @@
+{
+  "name": "os-ext",
+  "version": "1.0.0",
+  "description": "AI-powered desktop assistant with voice input and text processing",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "dist": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "assistant",
+    "desktop",
+    "voice",
+    "electron"
+  ],
+  "author": "Mohit",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^12.0.0",
+    "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "iohook": "^0.9.3"
+  },
+  "iohook": {
+    "targets": [
+      "electron-87"
+    ],
+    "platforms": [
+      "win32"
+    ],
+    "arches": [
+      "x64"
+    ]
+  },
+  "build": {
+    "appId": "com.mohit.os-ext-assistant",
+    "productName": "AI Desktop Assistant",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/*.ts",
+      "!*.code-workspace",
+      "!LICENSE.md",
+      "!package.json.md",
+      "!**/*.log",
+      "!src/*",
+      "!e2e/*",
+      "!hooks/*",
+      "!angular.json",
+      "!_config.yml",
+      "!karma.conf.js",
+      "!protractor.conf.js",
+      "!tsconfig.json",
+      "!tslint.json",
+      "!journey.md",
+      "!roadmap.md",
+      "!project_explained.md",
+      "!.git/**/*",
+      "!.github/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "verifyUpdateCodeSignature": false
+    },
+    "mac": false,
+    "linux": false,
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI Assistant",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    }
+  }
+}

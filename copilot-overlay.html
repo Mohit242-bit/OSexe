@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #ffffff;
+            overflow: hidden;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        /* Compact Mode - One line prompt */
+        .compact-mode { 
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            gap: 8px;
+            height: 60px;
+            -webkit-app-region: drag;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .compact-mode input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s ease;
+            -webkit-app-region: no-drag;
+        }
+
+        .compact-mode input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .compact-mode input:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+
+        .compact-controls {
+            display: flex;
+            gap: 6px;
+            -webkit-app-region: no-drag;
+        }
+
+        .thinking-btn, .submit-btn, .mic-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            min-width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .thinking-btn:hover, .submit-btn:hover, .mic-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .thinking-btn.active {
+            background: rgba(255, 152, 0, 0.3);
+            border-color: #ff9800;
+            color: #ff9800;
+        }
+
+        .mic-btn.listening {
+            background: rgba(255, 0, 0, 0.3);
+            border-color: #ff0000;
+            color: #ff0000;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .mic-btn.processing {
+            background: rgba(255, 152, 0, 0.3);
+            border-color: #ff9800;
+            color: #ff9800;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Response Mode - Clean response display */
+        .response-mode {
+            display: none;
+            flex-direction: column;
+            height: 300px;
+            padding: 16px;
+            -webkit-app-region: drag;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            -webkit-app-region: drag;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .response-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .response-content {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-y: auto;
+            cursor: pointer;
+            transition: all 0.2s;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            -webkit-app-region: no-drag;
+        }
+
+        .response-content:hover {
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .response-content.clicked {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .copy-hint {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            margin-top: 8px;
+            -webkit-app-region: drag;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { opacity: 0; }
+            40% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Hide scrollbar but keep functionality */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Toggle Switch Styles */
+        .toggle-switch .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        
+        .toggle-switch input:checked + .slider {
+            background-color: #4CAF50;
+            border-color: #4CAF50;
+        }
+        
+        .toggle-switch input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Compact Mode: One-line prompt (NO CLOSE BUTTON) -->
+    <div id="compactMode" class="compact-mode">
+        <input 
+            type="text" 
+            id="compactPrompt" 
+            placeholder="Ask AI about selected text..."
+            autofocus
+            style="-webkit-app-region: no-drag;"
+        />
+        <div class="compact-controls" style="-webkit-app-region: no-drag;">
+            <button id="compactThinking" class="thinking-btn" title="Toggle thinking mode">💡</button>
+            <button id="compactMic" class="mic-btn" title="Voice input">🎤</button>
+            <button id="compactSubmit" class="submit-btn" title="Submit prompt">→</button>
+            <button id="settingsBtn" class="thinking-btn" title="Settings" style="font-size:16px;">⚙️</button>
+        </div>
+    </div>
+    <!-- Settings Modal -->
+    <div id="settingsModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,30,30,0.97); z-index:1000; align-items:center; justify-content:center; overflow:auto; -webkit-app-region: no-drag;">
+        <div style="background:#232323; border-radius:10px; padding:14px 12px 12px 12px; width:90vw; max-width:340px; min-width:0; box-shadow:0 4px 24px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <h2 style="color:#fff; font-size:15px; font-weight:600; margin:0;">Settings</h2>
+                <button id="closeSettingsBtn" style="background:none; border:none; color:#aaa; font-size:18px; cursor:pointer; padding:2px 6px; border-radius:4px; transition:color 0.2s;" title="Close">✕</button>
+            </div>
+            
+            <!-- API Key Section -->
+            <label for="apiKeyInput" style="color:#ccc; font-size:12px; margin-bottom:4px; display:block;">Gemini API Key:</label>
+            <div style="display:flex; gap:8px; align-items:stretch; margin-bottom:8px;">
+                <input id="apiKeyInput" type="password" placeholder="AIza..." style="flex:1; width:70%; padding:8px 10px; border-radius:5px; border:1px solid #444; background:#181818; color:#fff; font-size:12px; font-family:monospace;" />
+                <button id="saveApiKeyBtn" style="padding:8px 12px; border-radius:5px; background:#4CAF50; color:#fff; border:none; font-size:12px; cursor:pointer; font-weight:500; white-space:nowrap; min-width:60px;">Save</button>
+            </div>
+            
+            <!-- Auto-start Section -->
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-top:1px solid #444; margin-top:4px;">
+                <div style="color:#ccc; font-size:12px;">Start with Windows:</div>
+                <label class="toggle-switch" style="position:relative; display:inline-block; width:40px; height:20px;">
+                    <input type="checkbox" id="autoStartToggle" style="opacity:0; width:0; height:0;">
+                    <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#555; border-radius:20px; transition:0.3s; border:1px solid #666;"></span>
+                </label>
+            </div>
+            
+            <div id="settingsMsg" style="color:#4CAF50; font-size:12px; margin-bottom:2px; display:none; text-align:center; min-height:16px;"></div>
+            <div style="color:#999; font-size:10px; text-align:center; line-height:1.3; word-break:break-all;">
+                Get your free API key from:<br><span style="color:#4CAF50;">https://aistudio.google.com/app/apikey</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading hidden">
+        Processing your request
+    </div>
+
+    <!-- Response Mode: Clean response display (NO QUICK ACTIONS) -->
+    <div id="responseMode" class="response-mode">
+        <div class="response-header">
+            <div class="response-title">AI Response</div>
+        </div>
+        <div id="responseContent" class="response-content">
+            Your AI response will appear here...
+        </div>
+        <div class="copy-hint">Click response to copy • Press Escape to close</div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        let thinkingEnabled = false;
+        let currentMode = 'compact';
+        
+        // Speech Recognition Setup
+        let recognition = null;
+        let isListening = false;
+        
+        // Initialize Speech Recognition
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+                
+                recognition.onstart = function() {
+                    console.log('Speech recognition started');
+                    isListening = true;
+                    updateMicButtonState('listening');
+                };
+                
+                recognition.onresult = function(event) {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    // Update input field with speech text
+                    const promptInput = document.getElementById('compactPrompt');
+                    if (finalTranscript) {
+                        promptInput.value = finalTranscript.trim();
+                    } else if (interimTranscript) {
+                        // Show interim results in real-time
+                        promptInput.value = interimTranscript.trim();
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    isListening = false;
+                    updateMicButtonState('idle');
+                    
+                    // Show user-friendly error
+                    if (event.error === 'not-allowed') {
+                        alert('Microphone access denied. Please allow microphone permissions.');
+                    } else if (event.error === 'no-speech') {
+                        // Silent timeout, just reset
+                    } else {
+                        alert('Speech recognition error: ' + event.error);
+                    }
+                };
+                
+                recognition.onend = function() {
+                    console.log('Speech recognition ended');
+                    isListening = false;
+                    updateMicButtonState('idle');
+                };
+                
+                return true;
+            } else {
+                console.warn('Speech recognition not supported');
+                return false;
+            }
+        }
+        
+        // Update microphone button visual state
+        function updateMicButtonState(state) {
+            const micBtn = document.getElementById('compactMic');
+            micBtn.className = 'mic-btn';
+            
+            switch (state) {
+                case 'listening':
+                    micBtn.classList.add('listening');
+                    micBtn.title = 'Listening... (click to stop)';
+                    micBtn.innerHTML = '🔴';
+                    break;
+                case 'processing':
+                    micBtn.classList.add('processing');
+                    micBtn.title = 'Processing speech...';
+                    micBtn.innerHTML = '⏳';
+                    break;
+                case 'idle':
+                default:
+                    micBtn.title = 'Voice input';
+                    micBtn.innerHTML = '🎤';
+                    break;
+            }
+        }
+        
+        // Toggle speech recognition
+        function toggleSpeechRecognition() {
+            if (!recognition) {
+                if (!initSpeechRecognition()) {
+                    alert('Speech recognition is not supported in this browser.');
+                    return;
+                }
+            }
+            
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Failed to start speech recognition:', error);
+                    alert('Failed to start speech recognition. Please try again.');
+                }
+            }
+        }
+        
+        // Handle Enter key press
+        document.getElementById('compactPrompt').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                submitPrompt();
+            }
+        });
+        
+        // Auto-focus input when window opens
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (currentMode === 'compact') {
+                    document.getElementById('compactPrompt').focus();
+                }
+                
+                // Initialize speech recognition
+                initSpeechRecognition();
+            }, 100);
+        });
+        
+        // Handle mode changes from main process
+        ipcRenderer.on('set-mode', (event, mode) => {
+            currentMode = mode;
+            
+            if (mode === 'compact') {
+                document.getElementById('compactMode').style.display = 'flex';
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('responseMode').style.display = 'none';
+                
+                // Auto-focus input
+                setTimeout(() => {
+                    document.getElementById('compactPrompt').focus();
+                }, 100);
+            } else if (mode === 'response') {
+                document.getElementById('compactMode').style.display = 'none';
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('responseMode').style.display = 'flex';
+            }
+        });
+        
+        // Handle clipboard text
+        ipcRenderer.on('set-clipboard-text', (event, text) => {
+            // Store for processing but don't show in UI to keep it clean
+            console.log('Processing text:', text.substring(0, 100) + '...');
+        });
+        
+        // Handle AI response
+        ipcRenderer.on('ai-response', (event, response) => {
+            document.getElementById('responseContent').textContent = response;
+            document.getElementById('compactSubmit').disabled = false;
+            document.getElementById('compactSubmit').innerHTML = '→';
+            
+            // Switch to response mode
+            currentMode = 'response';
+            document.getElementById('compactMode').style.display = 'none';
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('responseMode').style.display = 'flex';
+        });
+        
+        // Show loading state
+        ipcRenderer.on('show-loading', (event) => {
+            document.getElementById('compactMode').style.display = 'none';
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('responseMode').style.display = 'none';
+            
+            document.getElementById('compactSubmit').disabled = true;
+            document.getElementById('compactSubmit').innerHTML = '⏳';
+        });
+        
+        // Toggle thinking mode
+        function toggleThinking() {
+            thinkingEnabled = !thinkingEnabled;
+            const btn = document.getElementById('compactThinking');
+            
+            if (thinkingEnabled) {
+                btn.classList.add('active');
+                btn.title = 'Thinking mode: ON';
+            } else {
+                btn.classList.remove('active');
+                btn.title = 'Thinking mode: OFF';
+            }
+        }
+        
+        // Submit prompt
+        function submitPrompt() {
+            const prompt = document.getElementById('compactPrompt').value.trim();
+            if (!prompt) {
+                return; // Don't submit empty prompts
+            }
+            
+            // Check if API key is set
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!apiKey || !apiKey.trim()) {
+                // Show error message in response area
+                currentMode = 'response';
+                document.getElementById('compactMode').style.display = 'none';
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('responseMode').style.display = 'flex';
+                document.getElementById('responseContent').innerHTML = `
+                    <div style="text-align: center; color: #ff5252; padding: 20px;">
+                        <div style="font-size: 18px; margin-bottom: 12px;">🔑</div>
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">API Key Required</div>
+                        <div style="font-size: 14px; margin-bottom: 16px; color: #ccc;">
+                            Please enter your Gemini API key in settings to use the AI assistant.
+                        </div>
+                        <div style="font-size: 12px; color: #999;">
+                            Get your free API key from: https://aistudio.google.com/app/apikey
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            ipcRenderer.send('user-prompt', { 
+                prompt: prompt, 
+                thinking: thinkingEnabled 
+            });
+        }
+        
+        // Button event listeners
+        document.getElementById('compactThinking').addEventListener('click', toggleThinking);
+        document.getElementById('compactMic').addEventListener('click', toggleSpeechRecognition);
+        document.getElementById('compactSubmit').addEventListener('click', submitPrompt);
+        
+        // Settings modal logic
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const settingsMsg = document.getElementById('settingsMsg');
+        const autoStartToggle = document.getElementById('autoStartToggle');
+
+        // Open settings modal
+        settingsBtn.addEventListener('click', () => {
+            apiKeyInput.value = localStorage.getItem('geminiApiKey') || '';
+            settingsModal.style.display = 'flex';
+            settingsMsg.style.display = 'none';
+            settingsMsg.textContent = '';
+            
+            // Get current auto-start status
+            ipcRenderer.send('get-auto-start-status');
+            
+            setTimeout(() => apiKeyInput.focus(), 100);
+        });
+
+        // Handle auto-start status response
+        ipcRenderer.on('auto-start-status', (event, isEnabled) => {
+            autoStartToggle.checked = isEnabled;
+        });
+
+        // Auto-start toggle change handler
+        autoStartToggle.addEventListener('change', () => {
+            ipcRenderer.send('toggle-auto-start');
+            
+            // Show feedback
+            settingsMsg.textContent = autoStartToggle.checked ? 
+                '✅ Auto-start enabled!' : '❌ Auto-start disabled!';
+            settingsMsg.style.color = autoStartToggle.checked ? '#4CAF50' : '#ff9800';
+            settingsMsg.style.display = 'block';
+            
+            setTimeout(() => {
+                settingsMsg.style.display = 'none';
+            }, 2000);
+        });
+
+        // Close settings modal
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+
+        // Close modal on background click
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+
+        // Close button hover effect
+        closeSettingsBtn.addEventListener('mouseenter', () => {
+            closeSettingsBtn.style.color = '#ff5252';
+            closeSettingsBtn.style.background = 'rgba(255, 82, 82, 0.1)';
+        });
+        closeSettingsBtn.addEventListener('mouseleave', () => {
+            closeSettingsBtn.style.color = '#999';
+            closeSettingsBtn.style.background = 'none';
+        });
+
+        // Save API key
+        saveApiKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                ipcRenderer.send('set-gemini-api-key', key);
+                updateApiKeyStatus(true);
+                settingsMsg.textContent = '✅ API Key Saved Successfully!';
+                settingsMsg.style.color = '#4CAF50';
+                settingsMsg.style.display = 'block';
+                setTimeout(() => {
+                    settingsModal.style.display = 'none';
+                }, 1200);
+            } else {
+                settingsMsg.textContent = '❌ API key cannot be empty';
+                settingsMsg.style.color = '#ff5252';
+                settingsMsg.style.display = 'block';
+            }
+        });
+
+        // Save on Enter
+        apiKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') saveApiKeyBtn.click();
+        });
+
+        // Update API key status visual indicator
+        function updateApiKeyStatus(hasKey) {
+            const settingsBtn = document.getElementById('settingsBtn');
+            if (hasKey) {
+                settingsBtn.style.color = '#4CAF50';
+                settingsBtn.title = 'Settings (API Key Set)';
+            } else {
+                settingsBtn.style.color = '#ff5252';
+                settingsBtn.title = 'Settings (API Key Required)';
+            }
+        }
+
+        // Load API key on startup and send to main
+        window.addEventListener('DOMContentLoaded', () => {
+            const key = localStorage.getItem('geminiApiKey');
+            if (key) {
+                ipcRenderer.send('set-gemini-api-key', key);
+                updateApiKeyStatus(true);
+            } else {
+                updateApiKeyStatus(false);
+            }
+        });
+        
+        // Copy response to clipboard (click to copy feature)
+        document.getElementById('responseContent').addEventListener('click', function() {
+            const text = this.textContent;
+            if (text && text !== 'Your AI response will appear here...') {
+                navigator.clipboard.writeText(text).then(() => {
+                    // Show visual feedback
+                    this.classList.add('clicked');
+                    setTimeout(() => {
+                        this.classList.remove('clicked');
+                    }, 300);
+                });
+            }
+        });
+        
+        // Handle window focus for better UX
+        window.addEventListener('focus', () => {
+            if (currentMode === 'compact') {
+                document.getElementById('compactPrompt').focus();
+            }
+        });
+    </script>
+</body>
+</html>
